@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import logging
 import os
 import pickle
@@ -34,6 +35,7 @@ from ray.serve._private.common import (
 )
 from ray.serve._private.config import DeploymentConfig
 from ray.serve._private.constants import (
+    CONTROL_LOOP_GC_INTERVAL,
     CONTROL_LOOP_INTERVAL_S,
     RAY_SERVE_CONTROLLER_CALLBACK_IMPORT_PATH,
     RAY_SERVE_ENABLE_DIRECT_INGRESS,
@@ -537,6 +539,15 @@ class ServeController:
             num_loops += 1
             self.num_control_loops_gauge.set(num_loops)
             self._health_metrics_tracker.num_control_loops = num_loops
+
+            # Force a full GC sweep periodically. The controller's
+            # incoming-RPC arg deserialization produces pickled bytes objects
+            # that frequently end up retained by frame / asyncio task cycles
+            # that Python's generational GC doesn't reach quickly enough
+            # under sustained autoscale churn.
+            # See https://github.com/ray-project/ray/issues/58815.
+            if num_loops % CONTROL_LOOP_GC_INTERVAL == 0:
+                gc.collect()
 
             sleep_start_time = time.time()
             await asyncio.sleep(CONTROL_LOOP_INTERVAL_S)

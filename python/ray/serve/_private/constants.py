@@ -75,6 +75,11 @@ CONTROL_LOOP_INTERVAL_S = get_env_float_non_negative(
     "RAY_SERVE_CONTROL_LOOP_INTERVAL_S", 0.1
 )
 
+# Number of control-loop iterations between forced gc.collect() sweeps on the
+# controller. At the default CONTROL_LOOP_INTERVAL_S this is ~10 seconds.
+# See https://github.com/ray-project/ray/issues/58815.
+CONTROL_LOOP_GC_INTERVAL = 100
+
 #: Max time to wait for HTTP proxy in `serve.start()`.
 HTTP_PROXY_TIMEOUT = 60
 
